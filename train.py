@@ -5,7 +5,7 @@ import torch
 import torch.utils.data
 import torchvision
 
-from pytorch_lightning.callbacks import TQDMProgressBar
+from pytorch_lightning.callbacks import TQDMProgressBar, EarlyStopping
 from pytorch_lightning.utilities.types import OptimizerLRScheduler
 from torchvision import transforms
 import torch.nn.functional as F
@@ -66,8 +66,7 @@ class TrainModel(pl.LightningModule):
         return optimizer
 
 
-
-def train(hyps: Hyps, epochs=50, val_part=0.3):
+def train(hyps: Hyps, epochs=100, val_part=0.3):
     dataset = torchvision.datasets.CIFAR100("./cifar-100", download=True, transform=transforms.Compose([
         transforms.ToTensor(),
     ]))
@@ -85,16 +84,23 @@ def train(hyps: Hyps, epochs=50, val_part=0.3):
     model = TrainModel(hyps, n_classes=100)
     trainer = pl.Trainer(
         max_epochs=epochs,
-        callbacks=[MyProgressBar()],
-        # devices=1,
-        # accelerator="cpu"
+        callbacks=[
+            MyProgressBar(),
+            EarlyStopping(
+                monitor="val_loss",
+                min_delta=0.01,
+                patience=3,
+            )
+        ],
     )
 
     trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
 
-    return loss
+    val_accuracy = trainer.logged_metrics["val_acc"].item()
+
+    return val_accuracy
 
 
 if __name__ == '__main__':
-    loss = train(Hyps())
-    print(loss)
+    fitness = train(Hyps())
+    print(fitness)

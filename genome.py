@@ -2,8 +2,8 @@ from typing import Literal
 
 
 class Hyps:
-    stem_ksize: int = 7
-    stem_feats: int = 64
+    stem_ksize: int = 5
+    stem_feats: int = 32
     stem_type: Literal["max_pool", "conv"] = "conv"
 
     bottleneck: float = 1
@@ -13,7 +13,7 @@ class Hyps:
     lvl_count: int = 2
 
     head_type: Literal["avg_pool", "dense"] = "dense"
-    head_hid_dim: int = 512
+    head_hid_dim: int = 256
 
     dropout: float = 0.0
     lr: float = 1e-3
