@@ -1,11 +1,14 @@
+import math
+
 from torch import nn
 
-from genome import Hyps
+from hyps import Hyps
 
 
 class Conv(nn.Module):
     def __init__(self, cin, cout, ksize, stride=1, norm=True, bias=False, drop=0.0, act=True):
         super().__init__()
+        ksize = int(math.ceil((ksize - 1) / 2)) * 2 + 1
         self.conv = nn.Conv2d(cin, cout, ksize, stride, bias=bias, padding=(ksize - 1) // 2)
         self.drop = nn.Dropout(drop) if drop > 0 else None
         self.norm = nn.BatchNorm2d(cout) if norm else None
@@ -25,7 +28,7 @@ class Conv(nn.Module):
 class ArchBlock(nn.Module):
     def __init__(self, hyps: Hyps, cin, cout, ksize, stride=1):
         super().__init__()
-        cmid = int(hyps.bottleneck * cout)
+        cmid = int(math.ceil(hyps.bottleneck * cout))
 
         self.conv1 = Conv(cin, cmid, 1, drop=hyps.dropout)
         self.conv2 = Conv(cmid, cmid, ksize, stride=stride, drop=hyps.dropout)
@@ -79,7 +82,7 @@ class Stem(nn.Module):
 
 
 class Head(nn.Module):
-    def __init__(self, hyps: Hyps, feat_size: int, size: int, n_classes: int):
+    def __init__(self, hyps: Hyps, feat_size: int, n_classes: int):
         super().__init__()
 
         self.pool = {
@@ -90,7 +93,7 @@ class Head(nn.Module):
             ),
             "dense": nn.Sequential(
                 nn.Flatten(),
-                nn.Linear(feat_size * size * size, hyps.head_hid_dim)
+                nn.LazyLinear(hyps.head_hid_dim)
             )
         }[hyps.head_type]
 
@@ -111,16 +114,15 @@ class Classifier(nn.Module):
         self.stages = nn.ModuleList([
             Stage(
                 hyps,
-                int(hyps.stem_feats * hyps.feats_gain ** (i - 1 if i >= 1 else 0)),
-                int(hyps.stem_feats * hyps.feats_gain ** (i)),
-                n_blocks=hyps.lvl_blocks[i]
+                int(math.ceil(hyps.stem_feats * hyps.feats_gain ** (i - 1 if i >= 1 else 0))),
+                int(math.ceil(hyps.stem_feats * hyps.feats_gain ** (i))),
+                n_blocks=hyps.lvl_blocks
             )
             for i in range(hyps.lvl_count)
         ])
-        feats = int(hyps.stem_feats * hyps.feats_gain ** (hyps.lvl_count - 1))
-        size = 32 // 2 ** (1 + hyps.lvl_count)
+        feats = int(math.ceil(hyps.stem_feats * hyps.feats_gain ** (hyps.lvl_count - 1)))
 
-        self.head = Head(hyps, feats, size, n_classes)
+        self.head = Head(hyps, feats, n_classes)
 
     def forward(self, x):
         x = self.stem(x)

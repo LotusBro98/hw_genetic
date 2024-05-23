@@ -1,5 +1,5 @@
 import sys
-from typing import Any
+import logging
 
 import torch
 import torch.utils.data
@@ -11,7 +11,7 @@ from torchvision import transforms
 import torch.nn.functional as F
 import pytorch_lightning as pl
 
-from genome import Hyps
+from hyps import Hyps
 from model import Classifier
 
 
@@ -62,11 +62,12 @@ class TrainModel(pl.LightningModule):
         return loss
 
     def configure_optimizers(self) -> OptimizerLRScheduler:
-        optimizer = torch.optim.Adam(self.parameters(), lr=self.hyps.lr)
+        optimizer = torch.optim.AdamW(self.parameters(), lr=self.hyps.lr, weight_decay=self.hyps.weight_decay)
         return optimizer
 
 
-def train(hyps: Hyps, epochs=100, val_part=0.3):
+def train(hyps: Hyps, epochs=10, val_part=0.2):
+    print(hyps)
     dataset = torchvision.datasets.CIFAR100("./cifar-100", download=True, transform=transforms.Compose([
         transforms.ToTensor(),
     ]))
@@ -94,6 +95,7 @@ def train(hyps: Hyps, epochs=100, val_part=0.3):
         ],
     )
 
+    logging.getLogger("pytorch_lightning").setLevel(logging.ERROR)
     trainer.fit(model, train_dataloaders=train_loader, val_dataloaders=val_loader)
 
     val_accuracy = trainer.logged_metrics["val_acc"].item()
