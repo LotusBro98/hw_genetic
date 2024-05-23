@@ -62,15 +62,16 @@ class Genome:
 class Population:
     members = []
 
-    def __init__(self, objective: typing.Callable[[Hyps], float], max_lifetime: int = 10):
-        self.max_lifetime = max_lifetime
+    def __init__(self, objective: typing.Callable[[Hyps], float], exp_size: int = 10):
+        self.size = exp_size
+        self.max_lifetime = self.size
         self.objective = objective
         self._generate()
 
     def _generate(self):
         self.members = [
             Genome.crossover(Genome(MIN_HYPS), Genome(MAX_HYPS)).mutate().set_lifetime(0, self.max_lifetime)
-            for _ in range(self.max_lifetime)
+            for _ in range(self.size)
         ]
 
     def select(self) -> typing.Tuple[Genome, Genome]:
@@ -111,6 +112,6 @@ class Population:
 
 if __name__ == '__main__':
     shutil.rmtree("lightning_logs", ignore_errors=True)
-    pop = Population(size=10, objective=objective)
+    pop = Population(exp_size=10, objective=objective)
     best = pop.evolve(1000)
     print(best.hyps)
